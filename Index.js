@@ -17,51 +17,66 @@ app.use(session({
     saveUninitialized: true
 }));
 
-// Sign up
-// POST Method
-// Link http://localhost:8080/signup
-app.post('/signup', (req, res) => {
-    const { fullName, email, pin } = req.body;
 
-    if (!fullName || !email || !pin) {
-        return res.status(400).send({ error: true, message: 'Please provide fullName, email, and pin' });
+// Verify PIN
+// POST Method
+// Link http://localhost:8080/verifypin
+app.post('/verifypin', (req, res) => {
+    const { pin } = req.body;
+
+    // Ensure the pin is provided
+    if (!pin) {
+        return res.status(400).send({ error: true, message: 'Please provide a pin' });
     }
 
+    // Establish database connection
     const connection = dbConnection();
 
-    const query = 'INSERT INTO users (fullName, email, pin) VALUES (?, ?, ?)';
-    connection.query(query, [fullName, email, pin], (err, results) => {
+    // SQL query to verify if the pin matches a user in the database
+    const query = 'SELECT * FROM users WHERE web_pin = ?';
+    connection.query(query, [pin], (err, results) => {
+        connection.end(); // Close the database connection
+
         if (err) {
-            console.error('Error during signup query:', err); // Detailed logging
+            console.error('Error during PIN verification query:', err);
             return res.status(500).send({ error: true, message: 'Database error' });
         }
-        res.send({ error: false, data: results, message: 'User registered successfully' });
-    });
 
-    connection.end();
+        // Check if a user was found
+        if (results.length > 0) {
+            // Success: valid PIN
+            res.send({ error: false, message: 'PIN verified successfully', user: results[0] });
+        } else {
+            // Failure: invalid PIN
+            res.send({ error: true, message: 'Invalid PIN' });
+        }
+    });
 });
+
+
+
 
 // Sign in
 // POST Method
 // http://localhost:8080/signin
 app.post('/signin', (req, res) => {
-    const { email, pin } = req.body;
+    const { UserName, Password } = req.body;
 
-    if (!email || !pin) {
-        return res.status(400).send({ error: true, message: 'Please provide email and pin' });
+    if (!UserName || !Password) {
+        return res.status(400).send({ error: true, message: 'Please provide UserName and Password' });
     }
 
     const connection = dbConnection();
 
-    const query = 'SELECT * FROM users WHERE email = ? AND pin = ?';
-    connection.query(query, [email, pin], (err, results) => {
+    const query = 'SELECT * FROM users WHERE UserName = ? AND Password = ?';
+    connection.query(query, [UserName, Password], (err, results) => {
         if (err) {
             console.error('Error during signin query:', err); // Detailed logging
             return res.status(500).send({ error: true, message: 'Database error' });
         }
         if (results.length > 0) {
-            req.session.email = email; // Store email in session
-            console.log('Session email set:', req.session.email); // Debug log
+            req.session.UserName = UserName; // Store UserName in session
+            console.log('Session UserName set:', req.session.UserName); // Debug log
             res.send({ error: false, message: 'Valid credentials' });
         } else {
             res.send({ error: true, message: 'Invalid credentials' });
@@ -70,6 +85,7 @@ app.post('/signin', (req, res) => {
 
     connection.end();
 });
+
 
 // Debug route to set email in session manually for testing
 // POST Method
